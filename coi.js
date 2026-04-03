@@ -28,12 +28,13 @@
     return event;
   });
 
-  // Fill lawyersEmail when Lookup field is used (create or edit)
+  // Fill lawyersEmail when Lookup field or lawyers field changes (create or edit)
   kintone.events.on([
     "app.record.create.change",
     "app.record.edit.change",
   ], function (event) {
-    if (event.changes.field.code !== "Lookup") return event;
+    const changed = event.changes.field.code;
+    if (changed !== "Lookup" && changed !== "lawyers") return event;
     return fetchAndSetLawyersEmail(event);
   });
 
