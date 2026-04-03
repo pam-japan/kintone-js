@@ -1,6 +1,42 @@
 (function () {
   "use strict";
 
+  // Fetch lawyers' emails and populate lawyersEmail field
+  function fetchAndSetLawyersEmail(event) {
+    if (!event.record.lawyersEmail) return Promise.resolve(event);
+    const lawyers = event.record.lawyers;
+    if (!lawyers || !lawyers.value || !lawyers.value.length) {
+      event.record.lawyersEmail.value = "";
+      return Promise.resolve(event);
+    }
+    const codes = lawyers.value.map(function (u) { return u.code; });
+    return kintone.api("/v1/users", "GET", { codes: codes }).then(function (usersResp) {
+      event.record.lawyersEmail.value = usersResp.users
+        .map(function (u) { return u.email; })
+        .join(", ");
+      console.log("Lawyers emails set:", event.record.lawyersEmail.value);
+      return event;
+    });
+  }
+
+  // Always make lawyersEmail read-only
+  kintone.events.on([
+    "app.record.create.show",
+    "app.record.edit.show",
+  ], function (event) {
+    if (event.record.lawyersEmail) event.record.lawyersEmail.disabled = true;
+    return event;
+  });
+
+  // Fill lawyersEmail when Lookup field is used (create or edit)
+  kintone.events.on([
+    "app.record.create.change",
+    "app.record.edit.change",
+  ], function (event) {
+    if (event.changes.field.code !== "Lookup") return event;
+    return fetchAndSetLawyersEmail(event);
+  });
+
   // Evento de mostrar nuevo registro (app 11)
   kintone.events.on("app.record.create.show", function (event) {
 
@@ -41,6 +77,8 @@
           if (event.record.lawyers && source.lawyers?.value?.length)
             event.record.lawyers.value = source.lawyers.value;
           console.log("Contract fields set:", { contractId: source.$id.value, matter: source.matter?.value, type: source.type?.value, lawyers: source.lawyers?.value });
+
+          return fetchAndSetLawyersEmail(event);
         })
       );
     }
