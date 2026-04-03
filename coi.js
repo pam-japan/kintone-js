@@ -28,14 +28,33 @@
     return event;
   });
 
-  // Fill lawyersEmail when Lookup field or lawyers field changes (create or edit)
+  // Fill lawyersEmail when lawyers field is changed directly
   kintone.events.on([
     "app.record.create.change",
     "app.record.edit.change",
   ], function (event) {
-    const changed = event.changes.field.code;
-    if (changed !== "Lookup" && changed !== "lawyers") return event;
+    if (event.changes.field.code !== "lawyers") return event;
     return fetchAndSetLawyersEmail(event);
+  });
+
+  // Fill lawyersEmail when Lookup field is used — fetch lawyers from app 9
+  kintone.events.on([
+    "app.record.create.change",
+    "app.record.edit.change",
+  ], function (event) {
+    if (event.changes.field.code !== "Lookup") return event;
+    const contractId = event.record.contractId && event.record.contractId.value;
+    if (!contractId) return event;
+    return kintone.api(kintone.api.url("/k/v1/record", true), "GET", {
+      app: 9,
+      id: contractId,
+    }).then(function (resp) {
+      const source = resp.record;
+      if (event.record.lawyers && source.lawyers?.value?.length) {
+        event.record.lawyers.value = source.lawyers.value;
+      }
+      return fetchAndSetLawyersEmail(event);
+    });
   });
 
   // Evento de mostrar nuevo registro (app 11)
